@@ -11,6 +11,8 @@ import argparse
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--constraint', action='store_true', 
+            help='If set, use constraint data; used to test constraint query translation.')
     parser.add_argument('--toy', action='store_true', 
             help='If set, use small data; used for fast debugging.')
     parser.add_argument('--suffix', type=str, default='',
@@ -29,22 +31,29 @@ if __name__ == '__main__':
 
     N_word=300
     B_word=42
+    
     if args.toy:
         USE_SMALL=True
-        GPU=True
+        GPU=False
         BATCH_SIZE=15
     else:
         USE_SMALL=False
-        GPU=True
+        GPU=False
         BATCH_SIZE=64
-    TRAIN_ENTRY=(True, True, True)  # (AGG, SEL, COND)
+    TRAIN_ENTRY=(False, False, True)  # (AGG, SEL, COND)
     TRAIN_AGG, TRAIN_SEL, TRAIN_COND = TRAIN_ENTRY
     learning_rate = 1e-4 if args.rl else 1e-3
 
-    sql_data, table_data, val_sql_data, val_table_data, \
-            test_sql_data, test_table_data, \
-            TRAIN_DB, DEV_DB, TEST_DB = load_dataset(
-                    args.dataset, use_small=USE_SMALL)
+    if args.constraint:
+        tot_data = filter(lambda x: 'where' in x.lower() and len(x)>0, open("small_data.txt").read().split("\n")[:-1])
+        data = tot_data[:int(0.8*len(tot_data))]
+        val_data = tot_data[int(0.8*len(tot_data)):]
+        print "Loaded train and val dataset"
+    else:
+        sql_data, table_data, val_sql_data, val_table_data, \
+                test_sql_data, test_table_data, \
+                TRAIN_DB, DEV_DB, TEST_DB = load_dataset(
+                        args.dataset, use_small=USE_SMALL)
 
     word_emb = load_word_emb('glove/glove.%dB.%dd.txt'%(B_word,N_word), \
             load_used=args.train_emb, use_small=USE_SMALL)
@@ -99,6 +108,76 @@ if __name__ == '__main__':
                         'saved_model/epoch%d.cond_model%s'%(i+1, args.suffix))
                 torch.save(model.cond_pred.state_dict(), cond_m)
             print ' Best exec acc = %s, on epoch %s'%(best_acc, best_idx)
+    elif args.constraint:
+        #init_acc = epoch_acc_constraint(model, BATCH_SIZE,
+        #        val_data, TRAIN_ENTRY)
+        best_agg_acc = 0 #init_acc[1][0]
+        best_agg_idx = 0
+        best_sel_acc = 0 #init_acc[1][1]
+        best_sel_idx = 0
+        best_cond_acc = 0 #init_acc[1][2]
+        best_cond_idx = 0
+        #print 'Init dev acc_qm: %s\n  breakdown on (agg, sel, where): %s'%\
+                #init_acc
+        if TRAIN_AGG:
+            torch.save(model.agg_pred.state_dict(), agg_m)
+            if args.train_emb:
+                torch.save(model.agg_embed_layer.state_dict(), agg_e)
+        if TRAIN_SEL:
+            torch.save(model.sel_pred.state_dict(), sel_m)
+            if args.train_emb:
+                torch.save(model.sel_embed_layer.state_dict(), sel_e)
+        if TRAIN_COND:
+            torch.save(model.cond_pred.state_dict(), cond_m)
+            if args.train_emb:
+                torch.save(model.cond_embed_layer.state_dict(), cond_e)
+        for i in range(100):
+            print 'Epoch %d @ %s'%(i+1, datetime.datetime.now())
+            print ' Loss = %s'%epoch_train_constraint(
+                    model, optimizer, BATCH_SIZE, 
+                    data, TRAIN_ENTRY)
+            print ' Train acc_qm: %s\n   breakdown result: %s'%epoch_acc_constraint(
+                    model, BATCH_SIZE, data, TRAIN_ENTRY)
+            #val_acc = epoch_token_acc(model, BATCH_SIZE, val_sql_data, val_table_data, TRAIN_ENTRY)
+            val_acc = epoch_acc_constraint(model,
+                    BATCH_SIZE, val_data, TRAIN_ENTRY)
+            print ' Dev acc_qm: %s\n   breakdown result: %s'%val_acc
+            if TRAIN_AGG:
+                if val_acc[1][0] > best_agg_acc:
+                    best_agg_acc = val_acc[1][0]
+                    best_agg_idx = i+1
+                    torch.save(model.agg_pred.state_dict(),
+                        'saved_model/epoch%d.agg_model%s'%(i+1, args.suffix))
+                    torch.save(model.agg_pred.state_dict(), agg_m)
+                    if args.train_emb:
+                        torch.save(model.agg_embed_layer.state_dict(),
+                        'saved_model/epoch%d.agg_embed%s'%(i+1, args.suffix))
+                        torch.save(model.agg_embed_layer.state_dict(), agg_e)
+            if TRAIN_SEL:
+                if val_acc[1][1] > best_sel_acc:
+                    best_sel_acc = val_acc[1][1]
+                    best_sel_idx = i+1
+                    torch.save(model.sel_pred.state_dict(),
+                        'saved_model/epoch%d.sel_model%s'%(i+1, args.suffix))
+                    torch.save(model.sel_pred.state_dict(), sel_m)
+                    if args.train_emb:
+                        torch.save(model.sel_embed_layer.state_dict(),
+                        'saved_model/epoch%d.sel_embed%s'%(i+1, args.suffix))
+                        torch.save(model.sel_embed_layer.state_dict(), sel_e)
+            if TRAIN_COND:
+                if val_acc[1][2] > best_cond_acc:
+                    best_cond_acc = val_acc[1][2]
+                    best_cond_idx = i+1
+                    torch.save(model.cond_pred.state_dict(),
+                        'saved_model/epoch%d.cond_model%s'%(i+1, args.suffix))
+                    torch.save(model.cond_pred.state_dict(), cond_m)
+                    if args.train_emb:
+                        torch.save(model.cond_embed_layer.state_dict(),
+                        'saved_model/epoch%d.cond_embed%s'%(i+1, args.suffix))
+                        torch.save(model.cond_embed_layer.state_dict(), cond_e)
+            print ' Best val acc = %s, on epoch %s individually'%(
+                    (best_agg_acc, best_sel_acc, best_cond_acc),
+                    (best_agg_idx, best_sel_idx, best_cond_idx))
     else:
         init_acc = epoch_acc(model, BATCH_SIZE,
                 val_sql_data, val_table_data, TRAIN_ENTRY)

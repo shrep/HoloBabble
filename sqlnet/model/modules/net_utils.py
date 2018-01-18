@@ -10,6 +10,8 @@ def run_lstm(lstm, inp, inp_len, hidden=None):
         key=lambda k:inp_len[k], reverse=True))
     sort_inp_len = inp_len[sort_perm]
     sort_perm_inv = np.argsort(sort_perm)
+    sort_perm = torch.LongTensor(sort_perm)
+    sort_perm_inv = torch.LongTensor(sort_perm_inv)
     if inp.is_cuda:
         sort_perm = torch.LongTensor(sort_perm).cuda()
         sort_perm_inv = torch.LongTensor(sort_perm_inv).cuda()

@@ -24,9 +24,9 @@ class SQLNet(nn.Module):
         self.max_col_num = 45
         self.max_tok_num = 200
         self.SQL_TOK = ['<UNK>', '<END>', 'WHERE', 'AND',
-                'EQL', 'GT', 'LT', '<BEG>']
-        self.COND_OPS = ['EQL', 'GT', 'LT']
-
+                'EQL', 'GT', 'LT', 'NEQL','<BEG>']
+        #self.COND_OPS = ['EQL', 'GT', 'LT','NEQL','LTEQL', 'GTEQL']
+        self.COND_OPS = ['=', '>', '<','<>','<=', '>=']
         #Word embedding
         if trainable_emb:
             self.agg_embed_layer = WordEmbedding(word_emb, N_word, gpu,
@@ -69,13 +69,32 @@ class SQLNet(nn.Module):
             while st < len(cur_query):
                 ed = len(cur_query) if 'AND' not in cur_query[st:]\
                         else cur_query[st:].index('AND') + st
-                if 'EQL' in cur_query[st:ed]:
-                    op = cur_query[st:ed].index('EQL') + st
-                elif 'GT' in cur_query[st:ed]:
-                    op = cur_query[st:ed].index('GT') + st
-                elif 'LT' in cur_query[st:ed]:
-                    op = cur_query[st:ed].index('LT') + st
+                and_ind = or_ind = np.inf
+                if 'AND' in cur_query[st:]:
+                    and_ind = cur_query[st:].index('AND')
+                if 'OR' in cur_query[st:]:
+                    or_ind = cur_query[st:].index('OR')
+                
+                if 'AND' not in cur_query[st:] and 'OR' not in cur_query[st:]:
+                    ed = len(cur_query)
                 else:
+                    ed = min(and_ind,or_ind) + st                
+
+                #print cur_query[st:ed]
+                if '<>' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('<>') + st
+                elif '<=' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('<=') + st
+                elif '>=' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('>=') + st
+                elif '>' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('>') + st
+                elif '<' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('<') + st
+                elif '=' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('=') + st
+                else:
+                    print cur_query, cur_query[st:ed]
                     raise RuntimeError("No operator in it!")
                 this_str = ['<BEG>'] + cur_query[op+1:ed] + ['<END>']
                 cur_seq = [all_toks.index(s) if s in all_toks \
@@ -83,6 +102,7 @@ class SQLNet(nn.Module):
                 cur_values.append(cur_seq)
                 st = ed+1
             ret_seq.append(cur_values)
+            
         return ret_seq
 
 
@@ -126,6 +146,8 @@ class SQLNet(nn.Module):
             col_inp_var, col_name_len, col_len = \
                     self.embed_layer.gen_col_batch(col)
             max_x_len = max(x_len)
+            
+
             if pred_agg:
                 agg_score = self.agg_pred(x_emb_var, x_len, col_inp_var,
                         col_name_len, col_len, col_num, gt_sel=gt_sel)
@@ -172,11 +194,15 @@ class SQLNet(nn.Module):
                     cond_op_score, cond_str_score = cond_score
             #Evaluate the number of conditions
             cond_num_truth = map(lambda x:x[2], truth_num)
+            #print cond_num_truth
+
             data = torch.from_numpy(np.array(cond_num_truth))
             if self.gpu:
                 cond_num_truth_var = Variable(data.cuda())
             else:
                 cond_num_truth_var = Variable(data)
+            #print cond_num_score.shape, cond_num_truth_var.shape
+            
             loss += self.CE(cond_num_score, cond_num_truth_var)
 
             #Evaluate the columns of conditions

@@ -23,6 +23,7 @@ word_emb = load_word_emb('glove/glove.%dB.%dd.txt'%(B_word,N_word),
         use_small=USE_SMALL)
 print "Length of word vocabulary: %d"%len(word_emb)
 
+tot_data = open("final_data_2.0.txt").read().split("\n")[:-1]
 word_to_idx = {'<UNK>':0, '<BEG>':1, '<END>':2}
 word_num = 3
 embs = [np.zeros(N_word,dtype=np.float32) for _ in range(word_num)]
@@ -34,6 +35,14 @@ def check_and_add(tok):
         word_to_idx[tok] = word_num
         word_num += 1
         embs.append(word_emb[tok])
+
+for data in tot_data:
+    data = data.replace('=','EQL').replace('<>','NEQL').replace('where', 'WHERE').replace('(','').replace(')','').replace('>','GT').replace('<','LT')
+    for data1 in data.strip().split('|'):
+        for data2 in data1.split(','):
+            for data3 in data2.split():
+                if data3.strip() != '':
+                    check_and_add(data3.strip())
 
 for sql in sql_data:
     for tok in sql['question_tok']:

@@ -20,7 +20,7 @@ class SQLNetCondPredictor(nn.Module):
                 dropout=0.3, bidirectional=True)
         self.cond_num_att = nn.Linear(N_h, 1)
         self.cond_num_out = nn.Sequential(nn.Linear(N_h, N_h),
-                nn.Tanh(), nn.Linear(N_h, 5))
+                nn.Tanh(), nn.Linear(N_h, 4))
         self.cond_num_name_enc = nn.LSTM(input_size=N_word, hidden_size=N_h/2,
                 num_layers=N_depth, batch_first=True,
                 dropout=0.3, bidirectional=True)
@@ -57,7 +57,7 @@ class SQLNetCondPredictor(nn.Module):
                 dropout=0.3, bidirectional=True)
         self.cond_op_out_col = nn.Linear(N_h, N_h)
         self.cond_op_out = nn.Sequential(nn.Linear(N_h, N_h), nn.Tanh(),
-                nn.Linear(N_h, 3))
+                nn.Linear(N_h, 6))
 
         self.cond_str_lstm = nn.LSTM(input_size=N_word, hidden_size=N_h/2,
                 num_layers=N_depth, batch_first=True,
@@ -184,12 +184,14 @@ class SQLNetCondPredictor(nn.Module):
 
         e_cond_col, _ = col_name_encode(col_inp_var, col_name_len,
                 col_len, self.cond_op_name_enc)
+        #print e_cond_col.shape
         col_emb = []
         for b in range(B):
             cur_col_emb = torch.stack([e_cond_col[b, x] 
                 for x in chosen_col_gt[b]] + [e_cond_col[b, 0]] *
                 (4 - len(chosen_col_gt[b])))  # Pad the columns to maximum (4)
             col_emb.append(cur_col_emb)
+            #print len(cur_col_emb)
         col_emb = torch.stack(col_emb)
 
         h_op_enc, _ = run_lstm(self.cond_op_lstm, x_emb_var, x_len)
@@ -253,7 +255,7 @@ class SQLNetCondPredictor(nn.Module):
             else:
                 cur_inp = Variable(torch.from_numpy(init_inp))
             cur_h = None
-            while t < 50:
+            while t < 40:
                 if cur_h:
                     g_str_s_flat, cur_h = self.cond_str_decoder(cur_inp, cur_h)
                 else:
