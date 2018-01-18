@@ -1,4 +1,4 @@
-# HoloClean
+# HoloBabble
 This repo builds on an implementation of SQLNet for predicting SQL constraints for Natural Language descriptions. (https://github.com/xiaojunxu/SQLNet).
 
 These SQL translations are used as constraints for the downstream task of data cleaning and repairing. (https://hazyresearch.github.io/snorkel/blog/holoclean.html)
