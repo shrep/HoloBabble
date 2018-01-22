@@ -187,7 +187,7 @@ if __name__ == '__main__':
             # (1) Log the scalar values
             info = {
                 'loss': loss.data[0],
-                'train_accuracy': train_accuracy.data[0]
+                'train_accuracy': train_accuracy.data[0],
                 'dev_accuracy': val_acc.data[0]
             }
             for tag, value in info.items():
