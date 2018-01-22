@@ -25,8 +25,8 @@ class SQLNet(nn.Module):
         self.max_tok_num = 200
         self.SQL_TOK = ['<UNK>', '<END>', 'WHERE', 'AND',
                 'EQL', 'GT', 'LT', 'NEQL','<BEG>']
-        #self.COND_OPS = ['EQL', 'GT', 'LT','NEQL','LTEQL', 'GTEQL']
-        self.COND_OPS = ['=', '>', '<','<>','<=', '>=']
+        self.COND_OPS = ['EQL', 'GT', 'LT','NEQL','LTEQL', 'GTEQL']
+        #self.COND_OPS = ['=', '>', '<','<>','<=', '>=']
         #Word embedding
         if trainable_emb:
             self.agg_embed_layer = WordEmbedding(word_emb, N_word, gpu,
@@ -58,8 +58,39 @@ class SQLNet(nn.Module):
         if gpu:
             self.cuda()
 
-
     def generate_gt_where_seq(self, q, col, query):
+        ret_seq = []
+        for cur_q, cur_col, cur_query in zip(q, col, query):
+            cur_values = []
+            st = cur_query.index(u'WHERE')+1 if \
+                    u'WHERE' in cur_query else len(cur_query)
+            all_toks = ['<BEG>'] + cur_q + ['<END>']
+            while st < len(cur_query):
+                ed = len(cur_query) if 'AND' not in cur_query[st:]\
+                        else cur_query[st:].index('AND') + st
+                if 'NEQL' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('NEQL') + st
+                elif 'LTEQL' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('LTEQL') + st
+                elif 'GTEQL' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('GTEQL') + st
+                elif 'GT' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('GT') + st
+                elif 'LT' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('LT') + st
+                elif 'EQL' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('EQL') + st
+                else:
+                    raise RuntimeError("No operator in it!")
+                this_str = ['<BEG>'] + cur_query[op+1:ed] + ['<END>']
+                cur_seq = [all_toks.index(s) if s in all_toks \
+                        else 0 for s in this_str]
+                cur_values.append(cur_seq)
+                st = ed+1
+            ret_seq.append(cur_values)
+        return ret_seq
+
+    """def generate_gt_where_seq(self, q, col, query):
         ret_seq = []
         for cur_q, cur_col, cur_query in zip(q, col, query):
             cur_values = []
@@ -81,18 +112,18 @@ class SQLNet(nn.Module):
                     ed = min(and_ind,or_ind) + st                
 
                 #print cur_query[st:ed]
-                if '<>' in cur_query[st:ed]:
-                    op = cur_query[st:ed].index('<>') + st
-                elif '<=' in cur_query[st:ed]:
-                    op = cur_query[st:ed].index('<=') + st
-                elif '>=' in cur_query[st:ed]:
-                    op = cur_query[st:ed].index('>=') + st
-                elif '>' in cur_query[st:ed]:
-                    op = cur_query[st:ed].index('>') + st
-                elif '<' in cur_query[st:ed]:
-                    op = cur_query[st:ed].index('<') + st
-                elif '=' in cur_query[st:ed]:
-                    op = cur_query[st:ed].index('=') + st
+                if 'NEQL' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('NEQL') + st
+                elif 'LTEQL' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('LTEQL') + st
+                elif 'GTEQL' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('GTEQL') + st
+                elif 'GT' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('GT') + st
+                elif 'LT' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('LT') + st
+                elif 'EQL' in cur_query[st:ed]:
+                    op = cur_query[st:ed].index('EQL') + st
                 else:
                     print cur_query, cur_query[st:ed]
                     raise RuntimeError("No operator in it!")
@@ -104,7 +135,7 @@ class SQLNet(nn.Module):
             ret_seq.append(cur_values)
             
         return ret_seq
-
+    """
 
     def forward(self, q, col, col_num, pred_entry,
             gt_where = None, gt_cond=None, reinforce=False, gt_sel=None):
