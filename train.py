@@ -8,7 +8,7 @@ from sqlnet.model.seq2sql import Seq2SQL
 from sqlnet.model.sqlnet import SQLNet
 import numpy as np
 import datetime
-
+from logger import Logger
 import argparse
 
 if __name__ == '__main__':
@@ -34,6 +34,9 @@ if __name__ == '__main__':
     N_word=300
     B_word=42
     
+    # Set the logger
+    logger = Logger('./logs')
+
     if args.toy:
         USE_SMALL=True
         GPU=False
@@ -138,9 +141,9 @@ if __name__ == '__main__':
             print ' Loss = %s'%epoch_train_constraint(
                     model, optimizer, BATCH_SIZE, 
                     data, TRAIN_ENTRY)
-            print ' Train acc_qm: %s\n   breakdown result: %s'%epoch_acc_constraint(
+            train_accuracy = epoch_acc_constraint(
                     model, BATCH_SIZE, data, TRAIN_ENTRY)
-            #val_acc = epoch_token_acc(model, BATCH_SIZE, val_sql_data, val_table_data, TRAIN_ENTRY)
+            print ' Train acc_qm: %s\n   breakdown result: %s'%train_accuracy
             val_acc = epoch_acc_constraint(model,
                     BATCH_SIZE, val_data, TRAIN_ENTRY)
             print ' Dev acc_qm: %s\n   breakdown result: %s'%val_acc
@@ -180,6 +183,15 @@ if __name__ == '__main__':
             print ' Best val acc = %s, on epoch %s individually'%(
                     (best_agg_acc, best_sel_acc, best_cond_acc),
                     (best_agg_idx, best_sel_idx, best_cond_idx))
+            #============ TensorBoard logging ============#
+            # (1) Log the scalar values
+            info = {
+                'loss': loss.data[0],
+                'train_accuracy': train_accuracy.data[0]
+                'dev_accuracy': val_acc.data[0]
+            }
+            for tag, value in info.items():
+                logger.scalar_summary(tag, value, i+1)
     else:
         init_acc = epoch_acc(model, BATCH_SIZE,
                 val_sql_data, val_table_data, TRAIN_ENTRY)
