@@ -2,9 +2,10 @@ import json
 from lib.dbengine import DBEngine
 import re
 import numpy as np
+from random import randint
 #from nltk.tokenize import StanfordTokenizer
-COND_OPS = ['=', '>', '<','<>','<=', '>=']
-REL_OPS = ['AND', 'OR']
+COND_OPS = ['EQL', 'GT', 'LT','NEQL','LTEQL', 'GTEQL']
+REL_OPS  = ['AND', 'OR']
 
 def count_cond(q):
     c = 0
@@ -110,7 +111,35 @@ def best_model_name(args, for_load=False):
         return agg_model_name, sel_model_name, cond_model_name
 
 
-def to_batch_seq_constraint(data, idxes, st, ed,ret_vis_data=False):
+def to_batch_seq_constraint(data, idxes, st, ed, ret_vis_data=False):
+    q_seq = []
+    col_seq = []
+    col_num = []
+    ans_seq = []
+    query_seq = []
+    gt_cond_seq = []
+    vis_seq = []
+    for i in range(st, ed):
+        sql = data[idxes[i]]
+        q_seq.append(sql['NL_tok'])
+        col_seq.append(sql['schema_tok'])
+        col_num.append(len(sql['schema']))
+        ans_seq.append((None,
+            None, 
+            len(sql['conds']),
+            tuple(x[0] for x in sql['sql']['conds']),
+            tuple(x[1] for x in sql['sql']['conds'])))
+        query_seq.append(sql['query_tok'])
+        gt_cond_seq.append(sql['sql']['conds'])
+        vis_seq.append((sql['NL'],
+           sql['schema'], sql['query']))
+    
+    if ret_vis_data:
+        return q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq, vis_seq
+    else:
+        return q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq
+
+"""def to_batch_seq_constraint(data, idxes, st, ed,ret_vis_data=False):
     q_seq = []
     col_seq = []
     col_num = []
@@ -121,12 +150,17 @@ def to_batch_seq_constraint(data, idxes, st, ed,ret_vis_data=False):
     vis_seq = []
     i = st
     while i<ed:
-        if len(data[idxes[i]].split('|')[1].strip().split()) == 0 or count_cond(data[idxes[i]].split('|')[2].strip().split()) >= 4 or not check_validity(data[idxes[i]].split('|')[2].strip().split()):
+        if ed==len(idxes):
+            ed = ed - i
+            i = 0
+        query_tok = data[idxes[i]].split('|')[2].strip().replace('where', 'WHERE').replace('(','').replace(')','').replace(',','').replace('<>','NEQL').replace('<=','LTEQL').replace('>=','GTEQL').replace('<','LT').replace('>','GT').replace('=','EQL').split()
+        query = ' '.join(query_tok)
+        #print query
+        if len(data[idxes[i]].split('|')[1].strip().split()) == 0 or count_cond(data[idxes[i]].split('|')[2].strip().split()) >= 4 or 'NEQLEQL' in query:
             #print data[idxes[i]].split('|')[2].strip().split()
+            i += 1
             ed = ed + 1
             continue
-        query_tok = data[idxes[i]].split('|')[2].strip().replace('where', 'WHERE').replace('(','').replace(')','').replace(',','').split()
-        query = ' '.join(query_tok)
         cols = [' '.join(x.strip().replace('(','').replace(')','').split()) for x in data[idxes[i]].split('|')[3].strip().split(',')]
         #print cols
         
@@ -150,13 +184,14 @@ def to_batch_seq_constraint(data, idxes, st, ed,ret_vis_data=False):
             val = ' '.join(query_tok[start_ind:curr_ind]).strip()
             gt.append((col,op,val)) 
         except:
+            i += 1
             ed = ed + 1
             continue
         gt_cond_seq.append(gt[:4])
         q_seq.append(data[idxes[i]].split('|')[1].strip().split())
         col_seq.append([x.strip().split() for x in data[idxes[i]].split('|')[3].strip().split(',')])
         col_num.append(len(data[idxes[i]].split('|')[3].strip().split(',')))
-        query_seq.append(data[idxes[i]].split('|')[2].strip().replace('where', 'WHERE').replace('(','').replace(')','').replace(',','').split())
+        query_seq.append(query_tok)
         
        
         #print gt
@@ -165,7 +200,7 @@ def to_batch_seq_constraint(data, idxes, st, ed,ret_vis_data=False):
                 min(len(gt),4),
                 tuple(x[0] for x in gt),
                 tuple(x[1] for x in gt)))
-        vis_seq.append((data[idxes[i]].split('|')[1].strip(),[x.strip() for x in data[idxes[i]].split('|')[3].strip().split(',')],data[idxes[i]].split('|')[2].strip().replace('=','EQL').replace('<>','NEQL').replace('where', 'WHERE').replace('(','').replace(')','').replace('>','GT').replace('<','LT')))
+        vis_seq.append((data[idxes[i]].split('|')[1].strip(),[x.strip() for x in data[idxes[i]].split('|')[3].strip().split(',')],data[idxes[i]].split('|')[2].strip().replace('where', 'WHERE').replace('(','').replace(')','').replace(',','').replace('<>','NEQL').replace('<=','LTEQL').replace('>=','GTEQL').replace('<','LT').replace('>','GT').replace('=','EQL')))
         gt_dict = {}
         gt_dict['conds'] = gt
         query_gt.append(gt_dict)
@@ -178,7 +213,7 @@ def to_batch_seq_constraint(data, idxes, st, ed,ret_vis_data=False):
 
 
 
-
+"""
 
 def to_batch_seq(sql_data, table_data, idxes, st, ed, ret_vis_data=False):
     q_seq = []
@@ -203,13 +238,13 @@ def to_batch_seq(sql_data, table_data, idxes, st, ed, ret_vis_data=False):
         vis_seq.append((sql['question'],
             table_data[sql['table_id']]['header'], sql['query']))
     
-    #print "q_seq:",q_seq 
-    #print "col_seq:",col_seq 
-    #print "col_num:",col_num
-    #print "ans_seq:",ans_seq 
-    #print "query_seq:",query_seq 
-    #print "gt_cond_seq:",gt_cond_seq
-    #print "vis_seq:",vis_seq
+    """print "q_seq:",q_seq 
+    print "col_seq:",col_seq 
+    print "col_num:",col_num
+    print "ans_seq:",ans_seq 
+    print "query_seq:",query_seq 
+    print "gt_cond_seq:",gt_cond_seq
+    print "vis_seq:",vis_seq"""
     if ret_vis_data:
         return q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq, vis_seq
     else:
@@ -221,8 +256,14 @@ def to_batch_query(sql_data, idxes, st, ed):
     for i in range(st, ed):
         query_gt.append(sql_data[idxes[i]]['sql'])
         table_ids.append(sql_data[idxes[i]]['table_id'])
-    #print query_gt
+    print query_gt
     return query_gt, table_ids
+
+def to_batch_query_constraint(data, idxes, st, ed):
+    query_gt = []
+    for i in range(st, ed):
+       query_gt.append(data[idxes[i]]['sql'])    
+    return query_gt
 
 
 
@@ -234,12 +275,12 @@ def epoch_train_constraint(model, optimizer, batch_size, data, pred_entry):
     while st < len(data):
         ed = st+batch_size if st+batch_size < len(perm) else len(perm)
 
-        q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq, query_gt = \
+        q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq = \
                 to_batch_seq_constraint(data, perm, st, ed)
         gt_where_seq = model.generate_gt_where_seq(q_seq, col_seq, query_seq)
-        #gt_sel_seq = [x[1] for x in ans_seq]
+        gt_sel_seq = [x[1] for x in ans_seq]
         score = model.forward(q_seq, col_seq, col_num, pred_entry,
-                gt_where=gt_where_seq, gt_cond=gt_cond_seq, gt_sel=None)
+                gt_where=gt_where_seq, gt_cond=gt_cond_seq, gt_sel=gt_sel_seq)
         loss = model.loss(score, ans_seq, pred_entry, gt_where_seq)
         cum_loss += loss.data.cpu().numpy()[0]*(ed - st)
         optimizer.zero_grad()
@@ -321,13 +362,14 @@ def epoch_acc_constraint(model, batch_size, data, pred_entry):
     while st < len(data):
         ed = st+batch_size if st+batch_size < len(perm) else len(perm)
 
-        q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq, query_gt, raw_data  = to_batch_seq_constraint(data,perm, st, ed,ret_vis_data=True)
+        q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq, \
+        raw_data  = to_batch_seq_constraint(data,perm, st, ed,ret_vis_data=True)
         raw_q_seq = [x[0] for x in raw_data]
         raw_col_seq = [x[1] for x in raw_data]
-        #query_gt, table_ids = to_batch_query(sql_data, perm, st, ed)
-        #gt_sel_seq = [x[1] for x in ans_seq]
+        query_gt= to_batch_query_constraint(data, perm, st, ed)
+        gt_sel_seq = [x[1] for x in ans_seq]
         score = model.forward(q_seq, col_seq, col_num,
-                pred_entry, gt_sel = None)
+                pred_entry, gt_sel = gt_sel_seq)
         pred_queries = model.gen_query(score, q_seq, col_seq,
                 raw_q_seq, raw_col_seq, pred_entry)
         #print pred_queries, query_gt
