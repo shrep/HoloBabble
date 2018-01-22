@@ -1,4 +1,6 @@
 ### TODO: Need to be test yet!
+import mkl
+mkl.set_num_threads(56)
 import json
 import torch
 from sqlnet.utils import *
@@ -45,9 +47,9 @@ if __name__ == '__main__':
     learning_rate = 1e-4 if args.rl else 1e-3
 
     if args.constraint:
-        tot_data = filter(lambda x: 'where' in x.lower() and len(x)>0, open("small_data.txt").read().split("\n")[:-1])
-        data = tot_data[:int(0.8*len(tot_data))]
-        val_data = tot_data[int(0.8*len(tot_data)):]
+        tot_data = json.load(open('constraint_data.json'))
+        data = tot_data[:int(0.7*len(tot_data))]
+        val_data = tot_data[int(0.3*len(tot_data)):]
         print "Loaded train and val dataset"
     else:
         sql_data, table_data, val_sql_data, val_table_data, \
@@ -109,16 +111,16 @@ if __name__ == '__main__':
                 torch.save(model.cond_pred.state_dict(), cond_m)
             print ' Best exec acc = %s, on epoch %s'%(best_acc, best_idx)
     elif args.constraint:
-        #init_acc = epoch_acc_constraint(model, BATCH_SIZE,
-        #        val_data, TRAIN_ENTRY)
-        best_agg_acc = 0 #init_acc[1][0]
+        init_acc = epoch_acc_constraint(model, BATCH_SIZE,
+                val_data, TRAIN_ENTRY)
+        best_agg_acc = init_acc[1][0]
         best_agg_idx = 0
-        best_sel_acc = 0 #init_acc[1][1]
+        best_sel_acc = init_acc[1][1]
         best_sel_idx = 0
-        best_cond_acc = 0 #init_acc[1][2]
+        best_cond_acc = init_acc[1][2]
         best_cond_idx = 0
-        #print 'Init dev acc_qm: %s\n  breakdown on (agg, sel, where): %s'%\
-                #init_acc
+        print 'Init dev acc_qm: %s\n  breakdown on (agg, sel, where): %s'%\
+                init_acc
         if TRAIN_AGG:
             torch.save(model.agg_pred.state_dict(), agg_m)
             if args.train_emb:
