@@ -126,7 +126,7 @@ def to_batch_seq_constraint(data, idxes, st, ed, ret_vis_data=False):
         col_num.append(len(sql['schema']))
         ans_seq.append((None,
             None, 
-            len(sql['conds']),
+            len(sql['sql']['conds']),
             tuple(x[0] for x in sql['sql']['conds']),
             tuple(x[1] for x in sql['sql']['conds'])))
         query_seq.append(sql['query_tok'])
