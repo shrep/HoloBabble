@@ -21,7 +21,14 @@ def check_validity(q):
             return True
     return False
 
-    
+def gen_cond_str(conds, header):
+    if len(conds) == 0:
+        return 'None'
+    cond_str = []
+    for cond in conds:
+        cond_str.append(header[cond[0]] + ' ' +
+                COND_OPS[cond[1]] + ' ' + unicode(cond[2]).lower())
+    return 'WHERE ' + ' AND '.join(cond_str)   
     
 def load_data(sql_paths, table_paths, use_small=False):
     if not isinstance(sql_paths, list):
@@ -139,82 +146,6 @@ def to_batch_seq_constraint(data, idxes, st, ed, ret_vis_data=False):
     else:
         return q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq
 
-"""def to_batch_seq_constraint(data, idxes, st, ed,ret_vis_data=False):
-    q_seq = []
-    col_seq = []
-    col_num = []
-    query_seq = []
-    gt_cond_seq = []
-    ans_seq = []
-    query_gt = []
-    vis_seq = []
-    i = st
-    while i<ed:
-        if ed==len(idxes):
-            ed = ed - i
-            i = 0
-        query_tok = data[idxes[i]].split('|')[2].strip().replace('where', 'WHERE').replace('(','').replace(')','').replace(',','').replace('<>','NEQL').replace('<=','LTEQL').replace('>=','GTEQL').replace('<','LT').replace('>','GT').replace('=','EQL').split()
-        query = ' '.join(query_tok)
-        #print query
-        if len(data[idxes[i]].split('|')[1].strip().split()) == 0 or count_cond(data[idxes[i]].split('|')[2].strip().split()) >= 4 or 'NEQLEQL' in query:
-            #print data[idxes[i]].split('|')[2].strip().split()
-            i += 1
-            ed = ed + 1
-            continue
-        cols = [' '.join(x.strip().replace('(','').replace(')','').split()) for x in data[idxes[i]].split('|')[3].strip().split(',')]
-        #print cols
-        
-        gt = []
-        #print data[idxes[i]],query_tok
-        try:
-            start_ind = query_tok.index('WHERE') + 1
-            curr_ind = start_ind + 1
-            while (curr_ind < len(query_tok)):
-                if query_tok[curr_ind] in COND_OPS:
-                    col = cols.index(' '.join(query_tok[start_ind:curr_ind]).strip())
-                    start_ind = curr_ind + 1
-                    op = COND_OPS.index(query_tok[curr_ind])
-                if query_tok[curr_ind] in REL_OPS:
-                    val = ' '.join(query_tok[start_ind:curr_ind]).strip()
-                    start_ind = curr_ind + 1
-                    gt.append((col,op,val))
-                
-                curr_ind += 1
-            
-            val = ' '.join(query_tok[start_ind:curr_ind]).strip()
-            gt.append((col,op,val)) 
-        except:
-            i += 1
-            ed = ed + 1
-            continue
-        gt_cond_seq.append(gt[:4])
-        q_seq.append(data[idxes[i]].split('|')[1].strip().split())
-        col_seq.append([x.strip().split() for x in data[idxes[i]].split('|')[3].strip().split(',')])
-        col_num.append(len(data[idxes[i]].split('|')[3].strip().split(',')))
-        query_seq.append(query_tok)
-        
-       
-        #print gt
-        ans_seq.append((None,
-                None, 
-                min(len(gt),4),
-                tuple(x[0] for x in gt),
-                tuple(x[1] for x in gt)))
-        vis_seq.append((data[idxes[i]].split('|')[1].strip(),[x.strip() for x in data[idxes[i]].split('|')[3].strip().split(',')],data[idxes[i]].split('|')[2].strip().replace('where', 'WHERE').replace('(','').replace(')','').replace(',','').replace('<>','NEQL').replace('<=','LTEQL').replace('>=','GTEQL').replace('<','LT').replace('>','GT').replace('=','EQL')))
-        gt_dict = {}
-        gt_dict['conds'] = gt
-        query_gt.append(gt_dict)
-        i += 1
-
-    if ret_vis_data:
-        return q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq, query_gt, vis_seq
-    else:
-        return q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq, query_gt
-
-
-
-"""
-
 def to_batch_seq(sql_data, table_data, idxes, st, ed, ret_vis_data=False):
     q_seq = []
     col_seq = []
@@ -238,13 +169,7 @@ def to_batch_seq(sql_data, table_data, idxes, st, ed, ret_vis_data=False):
         vis_seq.append((sql['question'],
             table_data[sql['table_id']]['header'], sql['query']))
     
-    """print "q_seq:",q_seq 
-    print "col_seq:",col_seq 
-    print "col_num:",col_num
-    print "ans_seq:",ans_seq 
-    print "query_seq:",query_seq 
-    print "gt_cond_seq:",gt_cond_seq
-    print "vis_seq:",vis_seq"""
+    
     if ret_vis_data:
         return q_seq, col_seq, col_num, ans_seq, query_seq, gt_cond_seq, vis_seq
     else:
@@ -256,7 +181,7 @@ def to_batch_query(sql_data, idxes, st, ed):
     for i in range(st, ed):
         query_gt.append(sql_data[idxes[i]]['sql'])
         table_ids.append(sql_data[idxes[i]]['table_id'])
-    print query_gt
+    #print query_gt
     return query_gt, table_ids
 
 def to_batch_query_constraint(data, idxes, st, ed):
@@ -359,6 +284,7 @@ def epoch_acc_constraint(model, batch_size, data, pred_entry):
     st = 0
     one_acc_num = 0.0
     tot_acc_num = 0.0
+    tot_cond_acc= 0.0
     while st < len(data):
         ed = st+batch_size if st+batch_size < len(perm) else len(perm)
 
@@ -372,15 +298,23 @@ def epoch_acc_constraint(model, batch_size, data, pred_entry):
                 pred_entry, gt_sel = gt_sel_seq)
         pred_queries = model.gen_query(score, q_seq, col_seq,
                 raw_q_seq, raw_col_seq, pred_entry)
+        if ed == len(perm):
+            print "Sample Predictions ..."
+            print "Inputs: ", raw_data[:5]
+            print "Predictions ..."
+            for i in range(len(raw_data[:5])):
+                print "SELECT * " + gen_cond_str(pred_queries[i]['conds'], raw_data[i][1])
+            
         #print pred_queries, query_gt
-        one_err, tot_err = model.check_acc(raw_data,
+        one_err, tot_err, cond_err = model.check_acc(raw_data,
                 pred_queries, query_gt, pred_entry)
 
         one_acc_num += (ed-st-one_err)
         tot_acc_num += (ed-st-tot_err)
+        tot_cond_acc+= (ed-st-cond_err)
 
         st = ed
-    return tot_acc_num / len(data), one_acc_num / len(data)
+    return tot_acc_num / len(data), one_acc_num / len(data), tot_cond_acc/ len(data)
 
 def epoch_acc(model, batch_size, sql_data, table_data, pred_entry):
     model.eval()
