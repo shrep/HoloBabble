@@ -332,29 +332,39 @@ class SQLNet(nn.Module):
                     flag = False
                     cond_num_err += 1
 
-                if flag and set(x[0] for x in cond_pred) != \
+                if set(x[0] for x in cond_pred) != \
                         set(x[0] for x in cond_gt):
                     flag = False
                     cond_col_err += 1
 
                 for idx in range(len(cond_pred)):
-                    if not flag:
-                        break
-                    gt_idx = tuple(
-                            x[0] for x in cond_gt).index(cond_pred[idx][0])
-                    if flag and cond_gt[gt_idx][1] != cond_pred[idx][1]:
+                    try:
+                        gt_idx = tuple(
+                                x[0] for x in cond_gt).index(cond_pred[idx][0])
+                    except:
                         flag = False
                         cond_op_err += 1
-
-                for idx in range(len(cond_pred)):
+                        break
+                    if cond_gt[gt_idx][1] != cond_pred[idx][1]:
+                        flag = False
+                        cond_op_err += 1
                     if not flag:
                         break
-                    gt_idx = tuple(
-                            x[0] for x in cond_gt).index(cond_pred[idx][0])
-                    if flag and unicode(cond_gt[gt_idx][2]).lower() != \
+
+                for idx in range(len(cond_pred)):
+                    try:
+                        gt_idx = tuple(
+                                x[0] for x in cond_gt).index(cond_pred[idx][0])
+                    except:
+                        flag = False
+                        cond_val_err += 1
+                        break
+                    if unicode(cond_gt[gt_idx][2]).lower() != \
                             unicode(cond_pred[idx][2]).lower():
                         flag = False
                         cond_val_err += 1
+                    if not flag:
+                        break
 
                 if not flag:
                     cond_err += 1
@@ -362,8 +372,16 @@ class SQLNet(nn.Module):
 
             if not good:
                 tot_err += 1
+            
+            
+            if good:
+                with open("correct.txt", "a") as myfile:
+                    try:
+                        myfile.write(vis_info[b][0] + ", " + "SELECT * " + gen_cond_str(pred_qry['conds'], vis_info[b][1]) + "\n")
+                    except:
+                        pass
 
-        return np.array((agg_err, sel_err, cond_err)), tot_err
+        return np.array((agg_err, sel_err, cond_err)), tot_err,  np.array((cond_num_err, cond_col_err, cond_op_err, cond_val_err))
 
 
     def gen_query(self, score, q, col, raw_q, raw_col,
