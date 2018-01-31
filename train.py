@@ -35,7 +35,7 @@ if __name__ == '__main__':
     B_word=42
     
     # Set the logger
-    logger = Logger('./logs')
+    logger = Logger('./logs/main')
 
     if args.toy:
         USE_SMALL=True
@@ -43,7 +43,7 @@ if __name__ == '__main__':
         BATCH_SIZE=15
     else:
         USE_SMALL=False
-        GPU=False
+        GPU=True
         BATCH_SIZE=64
     TRAIN_ENTRY=(False, False, True)  # (AGG, SEL, COND)
     TRAIN_AGG, TRAIN_SEL, TRAIN_COND = TRAIN_ENTRY
@@ -122,7 +122,7 @@ if __name__ == '__main__':
         best_sel_idx = 0
         best_cond_acc = init_acc[1][2]
         best_cond_idx = 0
-        print 'Init dev acc_qm: %s\n  breakdown on (agg, sel, where): %s'%\
+        print 'Init dev acc_qm: %s\n  breakdown on (agg, sel, where): %s breakdown on (num, col, op, val): %s'%\
                 init_acc
         if TRAIN_AGG:
             torch.save(model.agg_pred.state_dict(), agg_m)
@@ -138,15 +138,16 @@ if __name__ == '__main__':
                 torch.save(model.cond_embed_layer.state_dict(), cond_e)
         for i in range(100):
             print 'Epoch %d @ %s'%(i+1, datetime.datetime.now())
-            print ' Loss = %s'%epoch_train_constraint(
+            loss = epoch_train_constraint(
                     model, optimizer, BATCH_SIZE, 
                     data, TRAIN_ENTRY)
+            print ' Loss = %s'%loss
             train_accuracy = epoch_acc_constraint(
                     model, BATCH_SIZE, data, TRAIN_ENTRY)
-            print ' Train acc_qm: %s\n   breakdown result: %s'%train_accuracy
+            print ' Train acc_qm: %s\n   breakdown result: %s breakdown on (num, col, op, val): %s'%train_accuracy
             val_acc = epoch_acc_constraint(model,
                     BATCH_SIZE, val_data, TRAIN_ENTRY)
-            print ' Dev acc_qm: %s\n   breakdown result: %s'%val_acc
+            print ' Dev acc_qm: %s\n   breakdown result: %s breakdown on (num, col, op, val): %s'%val_acc
             if TRAIN_AGG:
                 if val_acc[1][0] > best_agg_acc:
                     best_agg_acc = val_acc[1][0]
@@ -186,9 +187,13 @@ if __name__ == '__main__':
             #============ TensorBoard logging ============#
             # (1) Log the scalar values
             info = {
-                'loss': loss.data[0],
-                'train_accuracy': train_accuracy.data[0],
-                'dev_accuracy': val_acc.data[0]
+                'loss': loss,
+                'train_accuracy': train_accuracy[0],
+                'dev_accuracy': val_acc[0],
+                'Num_accuracy': val_acc[2][0],
+                'Column_accuracy': val_acc[2][1],
+                'Operator_accuracy': val_acc[2][2],
+                'Value_accuracy': val_acc[2][3]
             }
             for tag, value in info.items():
                 logger.scalar_summary(tag, value, i+1)
@@ -217,11 +222,13 @@ if __name__ == '__main__':
                 torch.save(model.cond_embed_layer.state_dict(), cond_e)
         for i in range(100):
             print 'Epoch %d @ %s'%(i+1, datetime.datetime.now())
-            print ' Loss = %s'%epoch_train(
+            epoch_train_constraint(
                     model, optimizer, BATCH_SIZE, 
-                    sql_data, table_data, TRAIN_ENTRY)
-            print ' Train acc_qm: %s\n   breakdown result: %s'%epoch_acc(
-                    model, BATCH_SIZE, sql_data, table_data, TRAIN_ENTRY)
+                    data, TRAIN_ENTRY)
+            print ' Loss = %s'%loss
+            train_accuracy = epoch_acc_constraint(
+                    model, BATCH_SIZE, data, TRAIN_ENTRY)
+            print ' Train acc_qm: %s\n   breakdown result: %s'%train_accuracy
             #val_acc = epoch_token_acc(model, BATCH_SIZE, val_sql_data, val_table_data, TRAIN_ENTRY)
             val_acc = epoch_acc(model,
                     BATCH_SIZE, val_sql_data, val_table_data, TRAIN_ENTRY)
@@ -262,3 +269,12 @@ if __name__ == '__main__':
             print ' Best val acc = %s, on epoch %s individually'%(
                     (best_agg_acc, best_sel_acc, best_cond_acc),
                     (best_agg_idx, best_sel_idx, best_cond_idx))
+            #============ TensorBoard logging ============#
+            # (1) Log the scalar values
+            info = {
+                'loss_orig': loss,
+                'train_accuracy_orig': train_accuracy[0],
+                'dev_accuracy_orig': val_acc[0]
+            }
+            for tag, value in info.items():
+                logger.scalar_summary(tag, value, i+1)
