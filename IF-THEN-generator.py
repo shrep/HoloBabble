@@ -59,9 +59,6 @@ with open('dev.tables.in.jsonl', 'r') as f:
 schema = []
 for t in table_dict:
 	schema.append([tableNames[randint(0,len(tableNames)-1)], t['header']])
-
-#for s in schema:
-#	print(str(s))
 # ===================================================
 
 
@@ -79,6 +76,7 @@ opSQLListRev = ["<=", "<", ">=", ">", "<", "!=", "!=", "=", "=", "<=", "<=", "<"
 
 inp = open("in.txt", "w")
 outp = open("out.txt", "w")
+schep = open("schema.txt", "w")
 
 
 for i in range(0,1000):
@@ -94,6 +92,13 @@ for i in range(0,1000):
 		inp.write("The " + attri + " of a " + sche[0] + " " + exprRev + " negative.\n")
 		outp.write("If TRUE then " + attri + " >= 0.\n")
 
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
+
 
 for i in range(0,500):
 	sche = schema[randint(0, len(schema)-1)]
@@ -103,6 +108,13 @@ for i in range(0,500):
 
 	inp.write("No " + sche[0] + " should have more than " + val + " " + attri + ".\n")
 	outp.write("If TRUE then " + attri + " <= " + val + ".\n")
+
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
 
 
 
@@ -114,6 +126,13 @@ for i in range(0,500):
 
 	inp.write("It's necessary that each " + sche[0] + " " + exprNorm + " at least " + val + " " + attri + ".\n")
 	outp.write("If TRUE then " + attri + " >= " + val + ".\n")
+
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
 
 
 for i in range(0,500):
@@ -129,6 +148,13 @@ for i in range(0,500):
 	inp.write("There cannot exist a " + attriA + " " + attriAval + " with " + attriB + " greater than " + val + ".\n")
 	outp.write("If " + attriB + " > " + val + " then " + attriA + " != " + attriAval + ".\n")
 
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
+
 
 for i in range(0,500):
 	sche = schema[randint(0, len(schema)-1)]
@@ -143,6 +169,13 @@ for i in range(0,500):
 	inp.write(attriA + " " + attriAval + "'s " + attriB + " cannot be lower than " + val + ".\n")
 	outp.write("If " + attriA + " = " + attriAval + " then " + attriB + " >= " + val + ".\n")
 
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
+
 
 for i in range(0,500):
 	sche = schema[randint(0, len(schema)-1)]
@@ -153,6 +186,13 @@ for i in range(0,500):
 
 	inp.write("The " + attriA + " of a " + sche[0] + " cannot be before " + attriB + ".\n")
 	outp.write("If TRUE then " + attriA + " >= " + attriB + ".\n")
+
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
 
 
 for i in range(0,500):
@@ -167,6 +207,13 @@ for i in range(0,500):
 
 	inp.write("One has to be " + attriAval + " " + attriA + " to have any " + attriBval + " " + attriB + ".\n")
 	outp.write("If " + attriA + " = " + attriAval + " then " + attriB + " = " + attriBval + ".\n")
+
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
 
 
 for i in range(0,1000):
@@ -187,6 +234,13 @@ for i in range(0,1000):
 		inp.write("One must have " + attriA + " greater than " + attriB + ".\n")
 		outp.write("If TRUE then " + attriA + " > " + attriB + ".\n")
 
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
+
 
 for i in range(0,500):
 	sche = schema[randint(0, len(schema)-1)]
@@ -200,6 +254,13 @@ for i in range(0,500):
 
 	inp.write("Only a " + attriAval + " " + attriA + " can be " + attriBval + " " + attriB + " of a " + sche[0] + ".\n")
 	outp.write("If " + attriA + " = " + attriAval + " then " + attriB + " = " + attriBval + ".\n")
+
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
 
 
 for i in range(0,500):
@@ -215,6 +276,13 @@ for i in range(0,500):
 	inp.write(attriAval + " " + attriA + " cannot have " + attriBval + " " + attriB + ".\n")
 	outp.write("If " + attriA + " = " + attriAval + " then " + attriB + " != " + attriBval + ".\n")
 
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
+
 
 for i in range(0,500):
 	sche = schema[randint(0, len(schema)-1)]
@@ -228,3 +296,10 @@ for i in range(0,500):
 
 	inp.write("Every " + attriAval + " " + attriA + " must correspond to an " + attriBval + " " + attriB + ".\n")
 	outp.write("If " + attriA + " = " + attriAval + " then " + attriB + " = " + attriBval + ".\n")
+
+	schep.write(sche[0] + "(")
+	for s in sche[1]:
+		if not s == sche[1][len(sche[1])-1]:
+			schep.write(s + ", ")
+		else:
+			schep.write(s + ")\n")
